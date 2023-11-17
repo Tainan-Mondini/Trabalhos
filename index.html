@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Kanban Board</title>
+  <!-- Bootstrap CSS -->
+  <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">
+  <style>
+    .card {
+      margin-bottom: 10px;
+    }
+    .column {
+      min-height: 300px;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+      padding: 10px;
+      margin-bottom: 20px;
+    }
+    .pendente {
+      background-color: #ffc107;
+    }
+    .emandamento {
+      background-color: #17a2b8;
+    }
+    .finalizado {
+      background-color: #28a745;
+    }
+  </style>
+</head>
+<body>
+
+<div class="container mt-3">
+  <div class="row">
+    <div class="col-sm-4">
+      <h3>Pendente</h3>
+      <div class="column pendente" id="pendente" ondrop="drop(event, 'pendente')" ondragover="allowDrop(event)">
+      </div>
+    </div>
+    <div class="col-sm-4">
+      <h3>Em Andamento</h3>
+      <div class="column emandamento" id="emandamento" ondrop="drop(event, 'emandamento')" ondragover="allowDrop(event)">
+      </div>
+    </div>
+    <div class="col-sm-4">
+      <h3>Finalizado</h3>
+      <div class="column finalizado" id="finalizado" ondrop="drop(event, 'finalizado')" ondragover="allowDrop(event)">
+      </div>
+    </div>
+  </div>
+
+  <div class="row mt-4">
+    <div class="col-md-4">
+      <div class="form-group">
+        <label for="taskInput">Nova Tarefa</label>
+        <input type="text" id="taskInput" class="form-control" placeholder="Digite o nome da tarefa">
+      </div>
+      <div class="form-group">
+        <label for="dueDateInput">Data de Vencimento (dd-mm-aaaa)</label>
+        <input type="text" id="dueDateInput" class="form-control" placeholder="Insira a data (opcional)">
+      </div>
+      <button onclick="addTask()" class="btn btn-primary">Adicionar Tarefa</button>
+      <p id="addTaskMessage" class="text-success mt-2"></p>
+    </div>
+    <div class="col-md-4">
+      <div class="form-group">
+        <label for="taskStatus">Filtrar por Status</label>
+        <select id="taskStatus" class="form-control">
+          <option value="">Todos</option>
+          <option value="pendente">Pendente</option>
+          <option value="emandamento">Em Andamento</option>
+          <option value="finalizado">Finalizado</option>
+        </select>
+      </div>
+      <button onclick="filterTasksByStatus()" class="btn btn-secondary">Filtrar</button>
+      <p id="filterStatusMessage" class="text-info mt-2"></p>
+    </div>
+    <div class="col-md-4">
+      <div class="form-group">
+        <label for="taskName">Filtrar por Nome</label>
+        <input type="text" id="taskName" class="form-control" placeholder="Digite o nome da tarefa">
+      </div>
+      <button onclick="filterTasksByName()" class="btn btn-secondary">Filtrar</button>
+      <button onclick="resetFilters()" class="btn btn-secondary">Limpar Filtros</button>
+      <p id="filterNameMessage" class="text-info mt-2"></p>
+    </div>
+  </div>
+</div>
+
+<!-- Bootstrap JS e jQuery -->
+<script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.9.3/dist/umd/popper.min.js"></script>
+<script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+
+<script>
+  let tasks = [];
+
+  function allowDrop(event) {
+    event.preventDefault();
+  }
+
+  function drag(event) {
+    event.dataTransfer.setData("text", event.target.id);
+  }
+
+  function drop(event, status) {
+    event.preventDefault();
+    var data = event.dataTransfer.getData("text");
+    const task = tasks.find(task => task.id === data);
+    if (task) {
+      task.status = status;
+      updateTasks();
+    }
+  }
+
+  function addTask() {
+    const taskInput = document.getElementById('taskInput');
+    const dueDateInput = document.getElementById('dueDateInput');
+    const taskName = taskInput.value.trim();
+    const dueDate = dueDateInput.value.trim();
+    const addTaskMessage = document.getElementById('addTaskMessage');
+    if (taskName !== '') {
+      const [day, month, year] = dueDate.split('-').map(part => parseInt(part, 10));
+      const newDate = (dueDate !== '' && !isNaN(day) && !isNaN(month) && !isNaN(year))
+        ? new Date(year, month - 1, day).toLocaleDateString('pt-BR')
+        : null;
+      const newTask = {
+        id: 'task_' + Date.now(),
+        name: taskName,
+        status: 'pendente',
+        dueDate: newDate,
+      };
+      tasks.push(newTask);
+      taskInput.value = '';
+      dueDateInput.value = '';
+      addTaskMessage.innerText = 'Tarefa adicionada com sucesso!';
+      updateTasks();
+    } else {
+      addTaskMessage.innerText = 'Por favor, insira o nome da tarefa.';
+    }
+  }
+
+  function editTask(id) {
+    const task = tasks.find(task => task.id === id);
+    const newName = prompt('Digite o novo nome da tarefa:', task.name);
+    if (newName !== null && newName.trim() !== '') {
+      task.name = newName.trim();
+      updateTasks();
+    }
+  }
+
+  function startTask(id) {
+    tasks = tasks.map(task => {
+      if (task.id === id) {
+        return {
+          ...task,
+          status: 'emandamento'
+        };
+      }
+      return task;
+    });
+    updateTasks();
+  }
+
+  function completeTask(id) {
+    tasks = tasks.map(task => {
+      if (task.id === id) {
+        return {
+          ...task,
+          status: 'finalizado'
+        };
+      }
+      return task;
+    });
+    updateTasks();
+  }
+
+  function deleteTask(id) {
+    tasks = tasks.filter(task => task.id !== id);
+    updateTasks();
+  }
+
+  function getStatusText(status) {
+    if (status === 'emandamento') {
+      return 'Em Andamento';
+    }
+    return status.charAt(0).toUpperCase() + status.slice(1);
+  }
+
+  function filterTasksByStatus() {
+    const selectedStatus = document.getElementById('taskStatus').value;
+    const filterStatusMessage = document.getElementById('filterStatusMessage');
+    if (selectedStatus) {
+      const filteredTasks = tasks.filter(task => task.status === selectedStatus);
+      displayFilteredTasks(filteredTasks);
+      filterStatusMessage.innerText = '';
+    } else {
+      updateTasks();
+      filterStatusMessage.innerText = 'Selecione um status para filtrar.';
+    }
+  }
+
+  function filterTasksByName() {
+    const taskName = document.getElementById('taskName').value.trim().toLowerCase();
+    const filterNameMessage = document.getElementById('filterNameMessage');
+    if (taskName !== '') {
+      const filteredTasks = tasks.filter(task => task.name.toLowerCase().includes(taskName));
+      displayFilteredTasks(filteredTasks);
+      filterNameMessage.innerText = '';
+    } else {
+      updateTasks();
+      filterNameMessage.innerText = 'Digite o nome da tarefa para filtrar.';
+    }
+  }
+
+  function resetFilters() {
+    document.getElementById('taskStatus').value = '';
+    document.getElementById('taskName').value = '';
+    updateTasks();
+    const filterStatusMessage = document.getElementById('filterStatusMessage');
+    const filterNameMessage = document.getElementById('filterNameMessage');
+    filterStatusMessage.innerText = '';
+    filterNameMessage.innerText = '';
+  }
+
+  function displayFilteredTasks(filteredTasks) {
+    const pendenteColumn = document.getElementById('pendente');
+    const emAndamentoColumn = document.getElementById('emandamento');
+    const finalizadoColumn = document.getElementById('finalizado');
+
+    pendenteColumn.innerHTML = '';
+    emAndamentoColumn.innerHTML = '';
+    finalizadoColumn.innerHTML = '';
+
+    filteredTasks.map(task => {
+      const card = document.createElement('div');
+      card.id = task.id;
+      card.className = 'card';
+      card.draggable = true;
+      card.setAttribute('ondragstart', 'drag(event)');
+      card.innerHTML = `
+        <div class="card-body">
+          <h5 class="card-title">${task.name}</h5>
+          <p class="card-text">Status: ${getStatusText(task.status)}</p>
+          <p class="card-text">Data de Vencimento: ${task.dueDate ? task.dueDate : 'Não especificada'}</p>
+        </div>
+      `;
+
+      const deleteButton = document.createElement('button');
+      deleteButton.className = 'btn btn-danger btn-sm mr-2';
+      deleteButton.textContent = 'Excluir';
+      deleteButton.onclick = () => {
+        deleteTask(task.id);
+      };
+
+      const editButton = document.createElement('button');
+      editButton.className = 'btn btn-primary btn-sm mr-2';
+      editButton.textContent = 'Editar';
+      editButton.onclick = () => {
+        editTask(task.id);
+      };
+
+      if (task.status === 'pendente') {
+        const startButton = document.createElement('button');
+        startButton.className = 'btn btn-success btn-sm mr-2';
+        startButton.textContent = 'Iniciar';
+        startButton.onclick = () => {
+          startTask(task.id);
+        };
+
+        card.appendChild(startButton);
+        card.appendChild(editButton);
+        card.appendChild(deleteButton);
+        card.setAttribute('ondrop', 'drop(event, "pendente")');
+        card.setAttribute('ondragover', 'allowDrop(event)');
+        pendenteColumn.appendChild(card);
+      } else if (task.status === 'emandamento') {
+        const completeButton = document.createElement('button');
+        completeButton.className = 'btn btn-success btn-sm mr-2';
+        completeButton.textContent = 'Concluir';
+        completeButton.onclick = () => {
+          completeTask(task.id);
+        };
+
+        card.appendChild(completeButton);
+        card.appendChild(editButton);
+        card.appendChild(deleteButton);
+        card.setAttribute('ondrop', 'drop(event, "emandamento")');
+        card.setAttribute('ondragover', 'allowDrop(event)');
+        emAndamentoColumn.appendChild(card);
+      } else {
+        card.appendChild(editButton);
+        card.appendChild(deleteButton);
+        finalizadoColumn.appendChild(card);
+      }
+    });
+  }
+
+  function updateTasks() {
+    const pendenteColumn = document.getElementById('pendente');
+    const emAndamentoColumn = document.getElementById('emandamento');
+    const finalizadoColumn = document.getElementById('finalizado');
+
+    pendenteColumn.innerHTML = '';
+    emAndamentoColumn.innerHTML = '';
+    finalizadoColumn.innerHTML = '';
+
+    tasks.forEach(task => {
+      const card = document.createElement('div');
+      card.id = task.id;
+      card.className = 'card';
+      card.draggable = true;
+      card.setAttribute('ondragstart', 'drag(event)');
+      card.innerHTML = `
+        <div class="card-body">
+          <h5 class="card-title">${task.name}</h5>
+          <p class="card-text">Status: ${getStatusText(task.status)}</p>
+          <p class="card-text">Data de Vencimento: ${task.dueDate ? task.dueDate : 'Não especificada'}</p>
+        </div>
+      `;
+
+      const deleteButton = document.createElement('button');
+      deleteButton.className = 'btn btn-danger btn-sm mr-2';
+      deleteButton.textContent = 'Excluir';
+      deleteButton.onclick = () => {
+        deleteTask(task.id);
+      };
+
+      const editButton = document.createElement('button');
+      editButton.className = 'btn btn-primary btn-sm mr-2';
+      editButton.textContent = 'Editar';
+      editButton.onclick = () => {
+        editTask(task.id);
+      };
+
+      if (task.status === 'pendente') {
+        const startButton = document.createElement('button');
+        startButton.className = 'btn btn-success btn-sm mr-2';
+        startButton.textContent = 'Iniciar';
+        startButton.onclick = () => {
+          startTask(task.id);
+        };
+
+        card.appendChild(startButton);
+        card.appendChild(editButton);
+        card.appendChild(deleteButton);
+        card.setAttribute('ondrop', 'drop(event, "pendente")');
+        card.setAttribute('ondragover', 'allowDrop(event)');
+        pendenteColumn.appendChild(card);
+      } else if (task.status === 'emandamento') {
+        const completeButton = document.createElement('button');
+        completeButton.className = 'btn btn-success btn-sm mr-2';
+        completeButton.textContent = 'Concluir';
+        completeButton.onclick = () => {
+          completeTask(task.id);
+        };
+
+        card.appendChild(completeButton);
+        card.appendChild(editButton);
+        card.appendChild(deleteButton);
+        card.setAttribute('ondrop', 'drop(event, "emandamento")');
+        card.setAttribute('ondragover', 'allowDrop(event)');
+        emAndamentoColumn.appendChild(card);
+      } else {
+        card.appendChild(editButton);
+        card.appendChild(deleteButton);
+        finalizadoColumn.appendChild(card);
+      }
+    });
+  }
+
+  updateTasks();
+</script>
+
+</body>
+</html>
